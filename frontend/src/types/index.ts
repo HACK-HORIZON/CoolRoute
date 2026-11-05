@@ -108,6 +108,18 @@ export interface TradeoffAnalysis {
   summaryHeadline: string;
 }
 
+export interface TimeRecommendation {
+  bestRouteId: 'fastest' | 'coolest' | 'balanced';
+  bestRouteTitle: string;
+  badgeLabel: string;
+  badgeStyle: string;
+  phaseName: string;
+  solarHazardLevel: 'Low' | 'Moderate' | 'High' | 'Severe' | 'Extreme';
+  headline: string;
+  detailedReason: string;
+  tip: string;
+}
+
 export interface PresetScenario {
   id: string;
   title: string;

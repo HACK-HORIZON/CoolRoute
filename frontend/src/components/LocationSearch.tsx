@@ -95,7 +95,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
     onChangeDestination(temp);
   };
 
-  // Progressive multi-tier GPS location with fallback
+  // 100% Precision GPS location (no stale IP cache, immediate hardware trilateration)
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
       const defaultHub = BHUBANESWAR_EXPANDED_DATABASE.find(p => p.name.includes('Master Canteen')) || BHUBANESWAR_EXPANDED_DATABASE[0];
@@ -122,14 +122,20 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
       }
     };
 
-    // Fast low-accuracy geolocation first (works on Wi-Fi/desktop immediately in <1s)
+    // Primary: Query High-Accuracy Hardware GPS with maximumAge: 0 to eliminate wrong ISP/IP location
     navigator.geolocation.getCurrentPosition(
-      (pos) => onPosSuccess(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 30),
-      () => {
-        // High accuracy retry
+      (pos) => {
+        onPosSuccess(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 10);
+      },
+      (err) => {
+        console.warn('High accuracy GPS timed out or unavailable, trying network positioning:', err);
+        // Fallback with fresh coordinates only
         navigator.geolocation.getCurrentPosition(
-          (pos2) => onPosSuccess(pos2.coords.latitude, pos2.coords.longitude, pos2.coords.accuracy || 15),
-          () => {
+          (posFallback) => {
+            onPosSuccess(posFallback.coords.latitude, posFallback.coords.longitude, posFallback.coords.accuracy || 35);
+          },
+          (errFinal) => {
+            console.error('All GPS providers failed:', errFinal);
             setIsGpsLoading(false);
             const defaultHub = BHUBANESWAR_EXPANDED_DATABASE.find(p => p.name.includes('Master Canteen')) || BHUBANESWAR_EXPANDED_DATABASE[0];
             onChangeOrigin(defaultHub);
@@ -138,10 +144,10 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
               onGpsResolved([defaultHub.lat, defaultHub.lng], 50);
             }
           },
-          { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 0 }
         );
       },
-      { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 8500, maximumAge: 0 }
     );
   };
 

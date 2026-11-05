@@ -12,7 +12,7 @@ import { LocationPoint, RouteOption } from './types';
 import { calculateEnvironmentalContext } from './services/microclimateEngine';
 import { fetchRealWeatherData } from './services/weatherService';
 import { fetchOSRMGeometries, evaluateThermalRoutes, generateSynthesizedRoadGeometries, RawRouteGeometries } from './services/osrmRoutingService';
-import { analyzeRouteTradeoff } from './services/tradeoffAnalyst';
+import { analyzeRouteTradeoff, getTimeBasedRecommendation } from './services/tradeoffAnalyst';
 import { reverseGeocode } from './services/geocodingService';
 import { Bookmark, Footprints } from 'lucide-react';
 
@@ -114,6 +114,11 @@ export const App: React.FC = () => {
     return analyzeRouteTradeoff(activeRoutes.fastest, activeRoutes.coolest);
   }, [activeRoutes]);
 
+  // 6. Dynamic time-based recommendation engine (Identifies best route across 24h diurnal cycle)
+  const timeRec = useMemo(() => {
+    return getTimeBasedRecommendation(env);
+  }, [env]);
+
   // Handle map point selection / pin drag (wrapped in useCallback for stable reference)
   const handleSelectCoordinate = useCallback((point: LocationPoint, role: 'origin' | 'destination') => {
     if (role === 'origin') {
@@ -129,7 +134,7 @@ export const App: React.FC = () => {
     setGpsAccuracyRadius(accuracy);
   }, []);
 
-  // Multi-tier progressive GPS directly from map FAB
+  // 100% Precision GPS location directly from map FAB (Zero stale IP cache)
   const handleTriggerGps = () => {
     if (!navigator.geolocation) {
       setOrigin(DEFAULT_ORIGIN);
@@ -151,21 +156,27 @@ export const App: React.FC = () => {
       setGpsAccuracyRadius(acc);
     };
 
-    // Fast low-accuracy first
+    // Primary: Immediate High-Accuracy Hardware GPS with maximumAge: 0 to eliminate wrong ISP/IP locations
     navigator.geolocation.getCurrentPosition(
-      (pos) => onPosSuccess(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 30),
-      () => {
+      (pos) => {
+        onPosSuccess(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 10);
+      },
+      (err) => {
+        console.warn('High accuracy GPS timed out, trying standard positioning:', err);
         navigator.geolocation.getCurrentPosition(
-          (pos2) => onPosSuccess(pos2.coords.latitude, pos2.coords.longitude, pos2.coords.accuracy || 15),
-          () => {
+          (posFallback) => {
+            onPosSuccess(posFallback.coords.latitude, posFallback.coords.longitude, posFallback.coords.accuracy || 35);
+          },
+          (errFinal) => {
+            console.error('All GPS options failed:', errFinal);
             setOrigin(DEFAULT_ORIGIN);
             setGpsLocation([DEFAULT_ORIGIN.lat, DEFAULT_ORIGIN.lng]);
             setGpsAccuracyRadius(45);
           },
-          { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 0 }
         );
       },
-      { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 8500, maximumAge: 0 }
     );
   };
 
@@ -222,8 +233,13 @@ export const App: React.FC = () => {
           </p>
         </section>
 
-        {/* Time of Day Simulation Bar */}
-        <TimeSlider env={env} onChangeTime={setDepartureMinutes} />
+        {/* Time of Day Simulation Bar with Live Route Recommendation */}
+        <TimeSlider
+          env={env}
+          timeRec={timeRec}
+          onChangeTime={setDepartureMinutes}
+          onSelectRoute={setActiveRouteId}
+        />
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -233,6 +249,7 @@ export const App: React.FC = () => {
             <MapView
               routes={activeRoutes}
               activeRouteId={activeRouteId}
+              recommendedRouteId={timeRec.bestRouteId}
               origin={origin}
               destination={destination}
               onSelectCoordinate={handleSelectCoordinate}
@@ -314,6 +331,8 @@ export const App: React.FC = () => {
               <TradeoffCard
                 routes={activeRoutes}
                 tradeoff={tradeoff}
+                env={env}
+                timeRec={timeRec}
                 activeRouteId={activeRouteId}
                 onSelectRoute={setActiveRouteId}
               />

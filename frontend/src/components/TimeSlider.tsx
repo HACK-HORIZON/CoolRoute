@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { Sun, Droplets, Compass, Thermometer, Flame, ChevronDown, ChevronUp, Clock } from 'lucide-react';
-import { EnvironmentalContext } from '../types';
+import { Sun, Droplets, Compass, Thermometer, Flame, ChevronDown, ChevronUp, Clock, Trees, Zap, ShieldCheck } from 'lucide-react';
+import { EnvironmentalContext, TimeRecommendation } from '../types';
+import { getTimeBasedRecommendation } from '../services/tradeoffAnalyst';
 
 interface TimeSliderProps {
   env: EnvironmentalContext;
+  timeRec?: TimeRecommendation;
   onChangeTime: (minutes: number) => void;
+  onSelectRoute?: (id: 'fastest' | 'coolest' | 'balanced' | 'all') => void;
 }
 
 const PRESET_HOURS = [
@@ -15,10 +18,13 @@ const PRESET_HOURS = [
   { label: '6:30 PM', desc: 'Evening', minutes: 1110 },
 ];
 
-export const TimeSlider: React.FC<TimeSliderProps> = ({ env, onChangeTime }) => {
+export const TimeSlider: React.FC<TimeSliderProps> = ({ env, timeRec, onChangeTime, onSelectRoute }) => {
   const [showTelemetry, setShowTelemetry] = useState(false);
   const minMinutes = 420; // 07:00
   const maxMinutes = 1200; // 20:00
+
+  const rec = timeRec || getTimeBasedRecommendation(env);
+  const bestId = rec.bestRouteId;
 
   return (
     <div className="bg-black/95 backdrop-blur-md rounded-2xl border border-neutral-800 p-4 shadow-xl space-y-4">
@@ -72,6 +78,60 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ env, onChangeTime }) => 
           <span>04:00 PM</span>
           <span>08:00 PM</span>
         </div>
+      </div>
+
+      {/* Dynamic Route Recommendation for Departure Time */}
+      <div className="p-3 rounded-xl bg-neutral-900/90 border border-neutral-800 shadow-inner flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl flex items-center justify-center ${
+            bestId === 'coolest'
+              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+              : bestId === 'fastest'
+              ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+              : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+          }`}>
+            {bestId === 'coolest' ? (
+              <Trees className="w-5 h-5 text-emerald-400" />
+            ) : bestId === 'fastest' ? (
+              <Zap className="w-5 h-5 text-red-400" />
+            ) : (
+              <ShieldCheck className="w-5 h-5 text-sky-400" />
+            )}
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white flex items-center gap-2">
+              <span>Optimal Route at {env.timeFormatted}:</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                bestId === 'coolest'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                  : bestId === 'fastest'
+                  ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                  : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+              }`}>
+                {rec.bestRouteTitle}
+              </span>
+              <span className="text-[11px] text-neutral-400 hidden md:inline">({rec.phaseName})</span>
+            </div>
+            <div className="text-[11px] text-neutral-400 mt-0.5 line-clamp-1">
+              {rec.detailedReason}
+            </div>
+          </div>
+        </div>
+
+        {onSelectRoute && (
+          <button
+            onClick={() => onSelectRoute(bestId)}
+            className={`text-xs px-3 py-1.5 rounded-xl font-semibold border transition self-start sm:self-auto whitespace-nowrap shadow ${
+              bestId === 'coolest'
+                ? 'bg-emerald-600/90 hover:bg-emerald-600 text-white border-emerald-500'
+                : bestId === 'fastest'
+                ? 'bg-red-600/90 hover:bg-red-600 text-white border-red-500'
+                : 'bg-sky-600/90 hover:bg-sky-600 text-white border-sky-500'
+            }`}
+          >
+            Select {rec.bestRouteTitle.split(' ')[0]}
+          </button>
+        )}
       </div>
 
       {/* Preset Quick-Buttons */}

@@ -12,6 +12,7 @@ interface MapViewProps {
     balanced: RouteOption;
   } | null;
   activeRouteId: 'fastest' | 'coolest' | 'balanced' | 'all';
+  recommendedRouteId?: 'fastest' | 'coolest' | 'balanced';
   origin: LocationPoint;
   destination: LocationPoint;
   onSelectCoordinate: (point: LocationPoint, role: 'origin' | 'destination') => void;
@@ -30,6 +31,7 @@ const BBSR_CENTER: [number, number] = [20.2760, 85.8350];
 export const MapView: React.FC<MapViewProps> = ({
   routes,
   activeRouteId,
+  recommendedRouteId,
   origin,
   destination,
   onSelectCoordinate,
@@ -465,9 +467,15 @@ export const MapView: React.FC<MapViewProps> = ({
     };
 
     if (activeRouteId === 'all') {
-      drawRoute(routes.fastest, false);
-      drawRoute(routes.balanced, false);
-      drawRoute(routes.coolest, true);
+      const best = recommendedRouteId || 'coolest';
+      // Draw non-recommended paths first as secondary lines
+      if (best !== 'fastest') drawRoute(routes.fastest, false);
+      if (best !== 'balanced') drawRoute(routes.balanced, false);
+      if (best !== 'coolest') drawRoute(routes.coolest, false);
+      // Highlight the time-optimal route with high-visibility casing and glow
+      if (best === 'fastest') drawRoute(routes.fastest, true);
+      if (best === 'coolest') drawRoute(routes.coolest, true);
+      if (best === 'balanced') drawRoute(routes.balanced, true);
     } else {
       if (activeRouteId !== 'fastest') drawRoute(routes.fastest, false);
       if (activeRouteId !== 'balanced') drawRoute(routes.balanced, false);
@@ -492,7 +500,7 @@ export const MapView: React.FC<MapViewProps> = ({
         console.warn('Map bounds fit error:', err);
       }
     }
-  }, [mapReady, routes, activeRouteId, isPickingOnMap, origin.lat, origin.lng, destination.lat, destination.lng]);
+  }, [mapReady, routes, activeRouteId, recommendedRouteId, isPickingOnMap, origin.lat, origin.lng, destination.lat, destination.lng]);
 
   return (
     <div className="relative w-full h-[480px] md:h-[560px] rounded-2xl overflow-hidden border border-slate-700/80 shadow-2xl">
