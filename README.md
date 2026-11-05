@@ -52,7 +52,6 @@ thermal-route-planner/
 │   ├── index.html                     # HTML5 entrypoint
 │   ├── package.json                   # Client dependencies
 │   ├── tailwind.config.js             # Custom styling
-│   ├── vercel.json                    # Vercel deployment SPA rewrite rules
 │   └── vite.config.ts                 # Build configuration
 │
 ├── backend/                           # FastAPI Python Microservice
@@ -61,9 +60,8 @@ thermal-route-planner/
 │   ├── services/
 │   │   ├── solar_engine.py            # NOAA Solar Position Algorithm
 │   │   └── weather_service.py         # Open-Meteo cache & weather client
-│   ├── data/
-│   └── bhubaneswar_data.py            # 150+ POIs & Canopy/Heat Island Registry
-│   └── README.md                      # Backend documentation
+│   └── data/
+│       └── bhubaneswar_data.py        # 150+ POIs & Canopy/Heat Island Registry
 │
 ├── package.json                       # Top-level workspace script runner
 ├── render.yaml                        # Render Blueprint deployment definition
