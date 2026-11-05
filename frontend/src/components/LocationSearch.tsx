@@ -210,6 +210,17 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
                 setOriginSuggestions(BHUBANESWAR_EXPANDED_DATABASE.slice(0, 6).map(mapToItem));
               }
             }}
+            onBlur={() => {
+              setTimeout(() => setOriginSuggestions([]), 250);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && originSuggestions.length > 0) {
+                const top = originSuggestions[0];
+                onChangeOrigin(top);
+                setOriginQuery(top.name);
+                setOriginSuggestions([]);
+              }
+            }}
             onChange={(e) => handleOriginChange(e.target.value)}
             placeholder="Type any building, apartment, street or colony..."
             className="w-full bg-neutral-950 border border-neutral-800 text-neutral-100 rounded-xl pl-3 pr-16 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
@@ -240,6 +251,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
                 key={`orig-sug-${idx}`}
                 onClick={() => {
                   onChangeOrigin(item);
+                  setOriginQuery(item.name);
                   setOriginSuggestions([]);
                 }}
                 className="p-2.5 hover:bg-emerald-600/20 cursor-pointer text-left transition flex items-center justify-between"
@@ -295,6 +307,17 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
                 setDestSuggestions(BHUBANESWAR_EXPANDED_DATABASE.slice(0, 6).map(mapToItem));
               }
             }}
+            onBlur={() => {
+              setTimeout(() => setDestSuggestions([]), 250);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && destSuggestions.length > 0) {
+                const top = destSuggestions[0];
+                onChangeDestination(top);
+                setDestQuery(top.name);
+                setDestSuggestions([]);
+              }
+            }}
             onChange={(e) => handleDestChange(e.target.value)}
             placeholder="Type destination building, hospital, mall, or street..."
             className="w-full bg-neutral-950 border border-neutral-800 text-neutral-100 rounded-xl pl-3 pr-16 py-2 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
@@ -325,6 +348,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
                 key={`dest-sug-${idx}`}
                 onClick={() => {
                   onChangeDestination(item);
+                  setDestQuery(item.name);
                   setDestSuggestions([]);
                 }}
                 className="p-2.5 hover:bg-purple-600/20 cursor-pointer text-left transition flex items-center justify-between"

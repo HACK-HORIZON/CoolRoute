@@ -11,8 +11,7 @@ import { BHUBANESWAR_EXPANDED_DATABASE } from './data/bhubaneswarAreas';
 import { LocationPoint, RouteOption } from './types';
 import { calculateEnvironmentalContext } from './services/microclimateEngine';
 import { fetchRealWeatherData } from './services/weatherService';
-import { fetchOSRMGeometries, evaluateThermalRoutes, RawRouteGeometries } from './services/osrmRoutingService';
-import { calculateAllRoutes } from './services/routingEngine';
+import { fetchOSRMGeometries, evaluateThermalRoutes, generateSynthesizedRoadGeometries, RawRouteGeometries } from './services/osrmRoutingService';
 import { analyzeRouteTradeoff } from './services/tradeoffAnalyst';
 import { reverseGeocode } from './services/geocodingService';
 import { Bookmark, Footprints } from 'lucide-react';
@@ -42,8 +41,10 @@ export const App: React.FC = () => {
   // State: Real meteorological station data from Open-Meteo
   const [weatherData, setWeatherData] = useState<any>(null);
 
-  // State: Raw road geometries from OSRM
-  const [rawGeometries, setRawGeometries] = useState<RawRouteGeometries | null>(null);
+  // State: Guaranteed road geometries connecting origin and destination
+  const [rawGeometries, setRawGeometries] = useState<RawRouteGeometries>(() =>
+    generateSynthesizedRoadGeometries(BHUBANESWAR_EXPANDED_DATABASE[9], BHUBANESWAR_EXPANDED_DATABASE[10])
+  );
 
   // State: Visual Map Layers
   const [showCanopy, setShowCanopy] = useState<boolean>(true);
@@ -63,14 +64,21 @@ export const App: React.FC = () => {
     };
   }, [origin.lat, origin.lng]);
 
-  // 2. Fetch OSRM Road Geometries only when Origin or Destination changes
+  // 2. Fetch or calculate road geometries whenever Origin or Destination changes
   useEffect(() => {
     let isMounted = true;
+
+    // Step A: Immediately generate routes for the exact selected endpoints in 0ms!
+    const immediateGeoms = generateSynthesizedRoadGeometries(origin, destination);
+    setRawGeometries(immediateGeoms);
+
+    // Step B: Query OSRM in background to fine-tune to exact OpenStreetMap street curves if available
     fetchOSRMGeometries(origin, destination).then((geoms) => {
       if (isMounted && geoms) {
         setRawGeometries(geoms);
       }
     });
+
     return () => {
       isMounted = false;
     };
@@ -82,17 +90,9 @@ export const App: React.FC = () => {
   }, [departureMinutes, weatherData, origin.lat, origin.lng]);
 
   // 4. Instant in-memory route evaluation (0ms latency as the time slider is moved)
-  const osrmRoutes = useMemo(() => {
-    if (!rawGeometries) return null;
+  const activeRoutes = useMemo(() => {
     return evaluateThermalRoutes(rawGeometries, env);
   }, [rawGeometries, env]);
-
-  // Fallback graph routes if OSRM is loading or offline
-  const fallbackRoutes = useMemo(() => {
-    return calculateAllRoutes('bbsr_master_canteen', 'bbsr_ram_mandir', env, walkingSpeed);
-  }, [env, walkingSpeed]);
-
-  const activeRoutes = osrmRoutes || fallbackRoutes;
 
   // 5. Compute real trade-off analysis between Fastest and Coolest routes
   const tradeoff = useMemo(() => {
