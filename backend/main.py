@@ -98,3 +98,26 @@ def get_canopy_zones():
         "heat_islands": HEAT_ISLAND_ZONES
     }
 
+@app.get("/api/route")
+async def get_route(
+    start_lat: float = Query(..., description="Start latitude"),
+    start_lng: float = Query(..., description="Start longitude"),
+    end_lat: float = Query(..., description="Destination latitude"),
+    end_lng: float = Query(..., description="Destination longitude")
+):
+    """
+    Server-side resilient OSRM routing proxy.
+    Bypasses browser CORS restrictions and client-side rate limits.
+    """
+    import httpx
+    url = f"https://router.project-osrm.org/route/v1/walking/{start_lng:.5f},{start_lat:.5f};{end_lng:.5f},{end_lat:.5f}?overview=full&geometries=geojson&steps=false&alternatives=true"
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(url, headers={"User-Agent": "CoolRoute-Backend/1.0"})
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception:
+        pass
+    return {"code": "Fallback", "routes": []}
+
+

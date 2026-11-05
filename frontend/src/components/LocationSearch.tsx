@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LocationPoint } from '../types';
 import { searchLocations, reverseGeocode, SearchResultItem } from '../services/geocodingService';
-import { BHUBANESWAR_EXPANDED_DATABASE } from '../data/bhubaneswarAreas';
+import { BHUBANESWAR_EXPANDED_DATABASE, searchComprehensiveBhubaneswar } from '../data/bhubaneswarAreas';
 import { Search, MapPin, Navigation, ArrowUpDown, Crosshair, Loader2, Compass, Check, X, Building2, ShoppingBag, GraduationCap, Trees, Hospital } from 'lucide-react';
 
 interface LocationSearchProps {
@@ -95,47 +95,76 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
     onChangeDestination(temp);
   };
 
-  // High-accuracy live GPS location
+  // Progressive multi-tier GPS location with fallback
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      const defaultHub = BHUBANESWAR_EXPANDED_DATABASE.find(p => p.name.includes('Master Canteen')) || BHUBANESWAR_EXPANDED_DATABASE[0];
+      onChangeOrigin(defaultHub);
+      setOriginQuery(defaultHub.name);
       return;
     }
 
     setIsGpsLoading(true);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const accuracy = pos.coords.accuracy || 25;
-        const address = await reverseGeocode(lat, lng);
-
-        const point: LocationPoint = {
-          name: address || 'My Current Location',
-          lat,
-          lng,
-          address: `GPS (±${Math.round(accuracy)}m): ${address}`
-        };
-
-        onChangeOrigin(point);
-        setIsGpsLoading(false);
-
-        if (onGpsResolved) {
-          onGpsResolved([lat, lng], accuracy);
-        }
-      },
-      (err) => {
-        setIsGpsLoading(false);
-        console.warn('Geolocation error:', err);
-        alert('Could not access GPS. Please ensure location permission is allowed in your browser.');
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+    const onPosSuccess = async (lat: number, lng: number, acc: number) => {
+      setIsGpsLoading(false);
+      const addr = await reverseGeocode(lat, lng);
+      const point: LocationPoint = {
+        name: addr || 'My Live Location',
+        lat,
+        lng,
+        address: `GPS (±${Math.round(acc)}m): ${addr}`
+      };
+      onChangeOrigin(point);
+      setOriginQuery(point.name);
+      if (onGpsResolved) {
+        onGpsResolved([lat, lng], acc);
       }
+    };
+
+    // Fast low-accuracy geolocation first (works on Wi-Fi/desktop immediately in <1s)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => onPosSuccess(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 30),
+      () => {
+        // High accuracy retry
+        navigator.geolocation.getCurrentPosition(
+          (pos2) => onPosSuccess(pos2.coords.latitude, pos2.coords.longitude, pos2.coords.accuracy || 15),
+          () => {
+            setIsGpsLoading(false);
+            const defaultHub = BHUBANESWAR_EXPANDED_DATABASE.find(p => p.name.includes('Master Canteen')) || BHUBANESWAR_EXPANDED_DATABASE[0];
+            onChangeOrigin(defaultHub);
+            setOriginQuery(defaultHub.name);
+            if (onGpsResolved) {
+              onGpsResolved([defaultHub.lat, defaultHub.lng], 50);
+            }
+          },
+          { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+        );
+      },
+      { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
     );
+  };
+
+  // Resolve typed queries and trigger route calculation
+  const handlePlanRoute = () => {
+    if (originQuery && originQuery !== origin.name) {
+      const match = searchComprehensiveBhubaneswar(originQuery)[0];
+      if (match) {
+        onChangeOrigin(match);
+        setOriginQuery(match.name);
+      }
+    }
+
+    if (destQuery && destQuery !== destination.name) {
+      const match = searchComprehensiveBhubaneswar(destQuery)[0];
+      if (match) {
+        onChangeDestination(match);
+        setDestQuery(match.name);
+      }
+    }
+
+    setOriginSuggestions([]);
+    setDestSuggestions([]);
   };
 
   // Filter category shortcuts
@@ -249,7 +278,8 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
             {originSuggestions.map((item, idx) => (
               <div
                 key={`orig-sug-${idx}`}
-                onClick={() => {
+                onMouseDown={(e) => {
+                  e.preventDefault();
                   onChangeOrigin(item);
                   setOriginQuery(item.name);
                   setOriginSuggestions([]);
@@ -311,11 +341,15 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
               setTimeout(() => setDestSuggestions([]), 250);
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && destSuggestions.length > 0) {
-                const top = destSuggestions[0];
-                onChangeDestination(top);
-                setDestQuery(top.name);
-                setDestSuggestions([]);
+              if (e.key === 'Enter') {
+                if (destSuggestions.length > 0) {
+                  const top = destSuggestions[0];
+                  onChangeDestination(top);
+                  setDestQuery(top.name);
+                  setDestSuggestions([]);
+                } else {
+                  handlePlanRoute();
+                }
               }
             }}
             onChange={(e) => handleDestChange(e.target.value)}
@@ -346,7 +380,8 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
             {destSuggestions.map((item, idx) => (
               <div
                 key={`dest-sug-${idx}`}
-                onClick={() => {
+                onMouseDown={(e) => {
+                  e.preventDefault();
                   onChangeDestination(item);
                   setDestQuery(item.name);
                   setDestSuggestions([]);
@@ -375,6 +410,15 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
           </div>
         )}
       </div>
+
+      {/* Big Action Button: Plan Routes */}
+      <button
+        onClick={handlePlanRoute}
+        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 transition-all transform active:scale-[0.99] border border-emerald-400/40"
+      >
+        <Navigation className="w-4 h-4 text-emerald-200 fill-emerald-200" />
+        <span>Plan Routes (Direct &bull; Shaded &bull; Balanced)</span>
+      </button>
 
       {/* Category Filter Chips (Google Maps / Uber Explore Style) */}
       <div className="pt-2 border-t border-neutral-800">

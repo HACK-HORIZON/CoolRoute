@@ -24,9 +24,10 @@ let cachedWeatherData: OpenMeteoHourlyResponse | null = null;
 let lastFetchTime = 0;
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
 
+const BACKEND_BASE = ((import.meta as any).env?.VITE_API_BASE_URL as string) || 'https://coolroute-of98.onrender.com';
+
 /**
- * Fetches real meteorological measurements and radiation forecasts from Open-Meteo.
- * Free API, no key required, CORS supported.
+ * Fetches real meteorological measurements and radiation forecasts from Open-Meteo or Render backend proxy.
  */
 export async function fetchRealWeatherData(lat: number = 20.2961, lng: number = 85.8245): Promise<OpenMeteoHourlyResponse | null> {
   const now = Date.now();
@@ -34,27 +35,46 @@ export async function fetchRealWeatherData(lat: number = 20.2961, lng: number = 
     return cachedWeatherData;
   }
 
+  // 1. Direct Open-Meteo call
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&current=temperature_2m,relative_humidity_2m,direct_normal_irradiance,surface_temperature,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,direct_normal_irradiance,surface_temperature,wind_speed_10m&timezone=Asia%2FKolkata`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      throw new Error(`Open-Meteo HTTP error: ${res.status}`);
+    if (res.ok) {
+      const data: OpenMeteoHourlyResponse = await res.json();
+      cachedWeatherData = data;
+      lastFetchTime = now;
+      return data;
     }
-
-    const data: OpenMeteoHourlyResponse = await res.json();
-    cachedWeatherData = data;
-    lastFetchTime = now;
-    return data;
-  } catch (err) {
-    console.warn('Real weather API unavailable or offline, using physical model fallback:', err);
-    return null;
+  } catch {
+    // Continue to backend fallback
   }
+
+  // 2. Render backend proxy fallback
+  try {
+    const backendUrl = `${BACKEND_BASE}/api/weather?lat=${lat}&lng=${lng}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(backendUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data: OpenMeteoHourlyResponse = await res.json();
+      cachedWeatherData = data;
+      lastFetchTime = now;
+      return data;
+    }
+  } catch (err) {
+    console.warn('Weather APIs unavailable, using physical solar & thermal model fallback:', err);
+  }
+
+  return null;
 }
 
 /**

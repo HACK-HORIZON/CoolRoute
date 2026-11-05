@@ -16,14 +16,28 @@ import { analyzeRouteTradeoff } from './services/tradeoffAnalyst';
 import { reverseGeocode } from './services/geocodingService';
 import { Bookmark, Footprints } from 'lucide-react';
 
+const DEFAULT_ORIGIN: LocationPoint = {
+  name: 'Master Canteen (Station Square)',
+  lat: 20.2668,
+  lng: 85.8398,
+  address: 'Master Canteen Square, Station Rd, Bhubaneswar 751001'
+};
+
+const DEFAULT_DESTINATION: LocationPoint = {
+  name: 'Ram Mandir Square (Janpath)',
+  lat: 20.2825,
+  lng: 85.8436,
+  address: 'Janpath Rd, Kharvela Nagar, Bhubaneswar 751001'
+};
+
 export const App: React.FC = () => {
   // State: Departure time (minutes from midnight). Default: 13:30 (810 min - Peak solar heating)
   const [departureMinutes, setDepartureMinutes] = useState<number>(810);
 
   // State: Origin and Destination (Real LocationPoints in Bhubaneswar)
   // Default: Master Canteen to Ram Mandir
-  const [origin, setOrigin] = useState<LocationPoint>(BHUBANESWAR_EXPANDED_DATABASE[9]); // Master Canteen
-  const [destination, setDestination] = useState<LocationPoint>(BHUBANESWAR_EXPANDED_DATABASE[10]); // Ram Mandir
+  const [origin, setOrigin] = useState<LocationPoint>(DEFAULT_ORIGIN);
+  const [destination, setDestination] = useState<LocationPoint>(DEFAULT_DESTINATION);
 
   // State: Live GPS position and accuracy radius (meters)
   const [gpsLocation, setGpsLocation] = useState<[number, number] | null>(null);
@@ -43,7 +57,7 @@ export const App: React.FC = () => {
 
   // State: Guaranteed road geometries connecting origin and destination
   const [rawGeometries, setRawGeometries] = useState<RawRouteGeometries>(() =>
-    generateSynthesizedRoadGeometries(BHUBANESWAR_EXPANDED_DATABASE[9], BHUBANESWAR_EXPANDED_DATABASE[10])
+    generateSynthesizedRoadGeometries(DEFAULT_ORIGIN, DEFAULT_DESTINATION)
   );
 
   // State: Visual Map Layers
@@ -100,14 +114,14 @@ export const App: React.FC = () => {
     return analyzeRouteTradeoff(activeRoutes.fastest, activeRoutes.coolest);
   }, [activeRoutes]);
 
-  // Handle map point selection / pin drag
-  const handleSelectCoordinate = (point: LocationPoint, role: 'origin' | 'destination') => {
+  // Handle map point selection / pin drag (wrapped in useCallback for stable reference)
+  const handleSelectCoordinate = useCallback((point: LocationPoint, role: 'origin' | 'destination') => {
     if (role === 'origin') {
       setOrigin(point);
     } else {
       setDestination(point);
     }
-  };
+  }, []);
 
   // Handle live GPS resolution
   const handleGpsResolved = useCallback((pos: [number, number], accuracy: number) => {
@@ -115,40 +129,43 @@ export const App: React.FC = () => {
     setGpsAccuracyRadius(accuracy);
   }, []);
 
-  // Trigger GPS directly from map FAB
+  // Multi-tier progressive GPS directly from map FAB
   const handleTriggerGps = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      setOrigin(DEFAULT_ORIGIN);
+      setGpsLocation([DEFAULT_ORIGIN.lat, DEFAULT_ORIGIN.lng]);
+      setGpsAccuracyRadius(40);
       return;
     }
 
+    const onPosSuccess = async (lat: number, lng: number, acc: number) => {
+      const addr = await reverseGeocode(lat, lng);
+      const point: LocationPoint = {
+        name: addr || 'My Live Location',
+        lat,
+        lng,
+        address: `GPS (±${Math.round(acc)}m): ${addr}`
+      };
+      setOrigin(point);
+      setGpsLocation([lat, lng]);
+      setGpsAccuracyRadius(acc);
+    };
+
+    // Fast low-accuracy first
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const accuracy = pos.coords.accuracy || 25;
-        const address = await reverseGeocode(lat, lng);
-
-        const point: LocationPoint = {
-          name: address || 'My Current Location',
-          lat,
-          lng,
-          address: `GPS (±${Math.round(accuracy)}m): ${address}`
-        };
-
-        setOrigin(point);
-        setGpsLocation([lat, lng]);
-        setGpsAccuracyRadius(accuracy);
+      (pos) => onPosSuccess(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 30),
+      () => {
+        navigator.geolocation.getCurrentPosition(
+          (pos2) => onPosSuccess(pos2.coords.latitude, pos2.coords.longitude, pos2.coords.accuracy || 15),
+          () => {
+            setOrigin(DEFAULT_ORIGIN);
+            setGpsLocation([DEFAULT_ORIGIN.lat, DEFAULT_ORIGIN.lng]);
+            setGpsAccuracyRadius(45);
+          },
+          { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+        );
       },
-      (err) => {
-        console.warn('GPS error:', err);
-        alert('Could not access GPS. Please check browser location permissions.');
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
+      { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
     );
   };
 

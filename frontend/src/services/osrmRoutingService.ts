@@ -271,25 +271,46 @@ export function generateSynthesizedRoadGeometries(
   };
 }
 
-/**
- * Queries OSRM walking route with fast timeout
- */
-async function queryOSRM(coordsList: Array<[number, number]>): Promise<OSRMRouteResponse | null> {
-  try {
-    const coordsStr = coordsList.map(([lng, lat]) => `${lng.toFixed(5)},${lat.toFixed(5)}`).join(';');
-    const url = `https://router.project-osrm.org/route/v1/walking/${coordsStr}?overview=full&geometries=geojson&steps=false&alternatives=true`;
+const BACKEND_BASE = ((import.meta as any).env?.VITE_API_BASE_URL as string) || 'https://coolroute-of98.onrender.com';
 
+/**
+ * Queries OSRM walking route via Render backend proxy with direct fallback
+ */
+async function queryOSRM(start: LocationPoint, end: LocationPoint): Promise<OSRMRouteResponse | null> {
+  // 1. Try Render Backend Route Proxy first
+  try {
+    const proxyUrl = `${BACKEND_BASE}/api/route?start_lat=${start.lat}&start_lng=${start.lng}&end_lat=${end.lat}&end_lng=${end.lng}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2800);
+    const timeoutId = setTimeout(() => controller.abort(), 2600);
+
+    const res = await fetch(proxyUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.routes && data.routes.length > 0) return data;
+    }
+  } catch {
+    // Continue to direct public OSRM query
+  }
+
+  // 2. Direct browser query with fast timeout
+  try {
+    const coordsStr = `${start.lng.toFixed(5)},${start.lat.toFixed(5)};${end.lng.toFixed(5)},${end.lat.toFixed(5)}`;
+    const url = `https://router.project-osrm.org/route/v1/walking/${coordsStr}?overview=full&geometries=geojson&steps=false&alternatives=true`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2600);
 
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
-
-    if (!res.ok) return null;
-    return await res.json();
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.routes && data.routes.length > 0) return data;
+    }
   } catch {
-    return null;
+    // Fail gracefully to local synthesized router
   }
+
+  return null;
 }
 
 export interface RawRouteGeometries {
@@ -308,8 +329,8 @@ export function evaluateThermalRoutes(
   return {
     fastest: assembleRouteOption(
       'fastest',
-      'Fastest Route',
-      'Direct path along roads (Exposed blacktop & high sun)',
+      'Direct Route',
+      'Direct path along road blacktop (Fastest travel time, high solar exposure)',
       '#ef4444',
       raw.fastest.coordinates,
       raw.fastest.distance,
@@ -318,8 +339,8 @@ export function evaluateThermalRoutes(
     ),
     coolest: assembleRouteOption(
       'coolest',
-      'Cool Canopy Corridor',
-      'Tree-lined shaded roads & green parkway detour',
+      'Shaded Route',
+      'Cool tree canopy corridor & shaded parkways (Max heat relief)',
       '#10b981',
       raw.coolest.coordinates,
       raw.coolest.distance,
@@ -329,8 +350,8 @@ export function evaluateThermalRoutes(
     balanced: assembleRouteOption(
       'balanced',
       'Balanced Route',
-      'Optimal street shade with minimal detour',
-      '#0ea5e9',
+      'Optimal street shade with minimal walking detour',
+      '#38bdf8',
       raw.balanced.coordinates,
       raw.balanced.distance,
       raw.balanced.duration,
@@ -350,7 +371,7 @@ export async function fetchOSRMGeometries(
   const fallback = generateSynthesizedRoadGeometries(start, end);
 
   try {
-    const directRes = await queryOSRM([[start.lng, start.lat], [end.lng, end.lat]]);
+    const directRes = await queryOSRM(start, end);
     if (!directRes || !directRes.routes || directRes.routes.length === 0) {
       return fallback;
     }
@@ -404,7 +425,7 @@ export async function fetchOSRMGeometries(
       balanced: fallback.balanced
     };
   } catch (err) {
-    console.warn('OSRM request error, using resilient synthesized road geometries:', err);
+    console.warn('Routing network request, using synthesized road geometry:', err);
     return fallback;
   }
 }

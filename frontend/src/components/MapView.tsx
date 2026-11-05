@@ -48,6 +48,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   // Basemap toggle: 'satellite' | 'osm' | 'voyager'
   const [tileProvider, setTileProvider] = useState<'satellite' | 'osm' | 'voyager'>('satellite');
+  const [mapReady, setMapReady] = useState(false);
 
   // Layer groups refs
   const routesLayerRef = useRef<L.LayerGroup | null>(null);
@@ -88,6 +89,7 @@ export const MapView: React.FC<MapViewProps> = ({
     gpsMarkerLayerRef.current = L.layerGroup().addTo(map);
 
     mapInstanceRef.current = map;
+    setMapReady(true);
 
     // Handle map clicks for custom origin/destination picking
     map.on('click', async (e: L.LeafletMouseEvent) => {
@@ -151,6 +153,7 @@ export const MapView: React.FC<MapViewProps> = ({
     return () => {
       timers.forEach(clearTimeout);
       window.removeEventListener('resize', handleResize);
+      setMapReady(false);
       map.remove();
       mapInstanceRef.current = null;
     };
@@ -390,44 +393,63 @@ export const MapView: React.FC<MapViewProps> = ({
 
   // 8. Render All 3 Distinct Route Polylines
   useEffect(() => {
+    if (!mapReady || !routesLayerRef.current || !routes) return;
     const layer = routesLayerRef.current;
     const map = mapInstanceRef.current;
-    if (!layer || !routes) return;
     layer.clearLayers();
 
     const allPoints: [number, number][] = [];
 
     const drawRoute = (route: RouteOption, isHighlighted: boolean) => {
+      if (!route) return;
       const latlngs: [number, number][] = [];
-      route.segments.forEach((seg, i) => {
-        if (i === 0) {
-          latlngs.push(...seg.coordinates);
-        } else {
-          latlngs.push(...seg.coordinates.slice(1));
-        }
-      });
+      if (route.segments && route.segments.length > 0) {
+        route.segments.forEach((seg, i) => {
+          if (seg.coordinates && seg.coordinates.length > 0) {
+            if (i === 0) {
+              latlngs.push(...seg.coordinates);
+            } else {
+              latlngs.push(...seg.coordinates.slice(1));
+            }
+          }
+        });
+      }
 
-      if (latlngs.length < 2) return;
+      // Guaranteed fallback to endpoints if segment array was empty
+      if (latlngs.length < 2) {
+        latlngs.push([origin.lat, origin.lng], [destination.lat, destination.lng]);
+      }
+
       allPoints.push(...latlngs);
 
-      // Glow effect
+      // 1. High-contrast Black Casing Polyline (Guarantees immediate visibility against satellite basemaps)
+      const casing = L.polyline(latlngs, {
+        color: '#000000',
+        weight: isHighlighted ? 10 : 7,
+        opacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round'
+      });
+      layer.addLayer(casing);
+
+      // 2. Glow effect for active route
       if (isHighlighted) {
         const glowLine = L.polyline(latlngs, {
           color: route.color,
-          weight: 12,
-          opacity: 0.35,
+          weight: 14,
+          opacity: 0.45,
           lineCap: 'round',
           lineJoin: 'round'
         });
         layer.addLayer(glowLine);
       }
 
-      // Main crisp polyline along road network
+      // 3. Main crisp polyline along road network
       const polyline = L.polyline(latlngs, {
         color: route.color,
-        weight: isHighlighted ? 6 : 3.5,
-        opacity: isHighlighted ? 0.95 : 0.50,
-        dashArray: route.id === 'fastest' ? '8, 8' : undefined,
+        weight: isHighlighted ? 6 : 4,
+        opacity: isHighlighted ? 1.0 : 0.85,
+        dashArray: route.id === 'fastest' ? '6, 6' : undefined,
         lineCap: 'round',
         lineJoin: 'round'
       });
@@ -459,15 +481,18 @@ export const MapView: React.FC<MapViewProps> = ({
     if (map && allPoints.length > 0 && !isPickingOnMap) {
       try {
         const bounds = L.latLngBounds(allPoints);
-        map.fitBounds(bounds, {
-          padding: [50, 50],
-          maxZoom: 16
-        });
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, {
+            padding: [45, 45],
+            maxZoom: 16,
+            animate: true
+          });
+        }
       } catch (err) {
         console.warn('Map bounds fit error:', err);
       }
     }
-  }, [routes, activeRouteId, isPickingOnMap]);
+  }, [mapReady, routes, activeRouteId, isPickingOnMap, origin.lat, origin.lng, destination.lat, destination.lng]);
 
   return (
     <div className="relative w-full h-[480px] md:h-[560px] rounded-2xl overflow-hidden border border-slate-700/80 shadow-2xl">
