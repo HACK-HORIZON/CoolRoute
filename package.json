@@ -1,0 +1,12 @@
+{
+  "name": "coolroute-bhubaneswar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CoolRoute Bhubaneswar — Full-Stack Pedestrian Shade & Heat Navigation",
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "preview": "npm run preview --prefix frontend"
+  }
+}
+
