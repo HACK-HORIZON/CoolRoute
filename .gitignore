@@ -40,3 +40,4 @@ Thumbs.db
 *.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
 .vite/
+
