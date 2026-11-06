@@ -32,6 +32,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
   const [isSearchingOrigin, setIsSearchingOrigin] = useState(false);
   const [isSearchingDest, setIsSearchingDest] = useState(false);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
+  const [isPlanning, setIsPlanning] = useState(false);
 
   const originTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const destTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -151,26 +152,59 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
     );
   };
 
-  // Resolve typed queries and trigger route calculation
-  const handlePlanRoute = () => {
-    if (originQuery && originQuery !== origin.name) {
-      const match = searchComprehensiveBhubaneswar(originQuery)[0];
-      if (match) {
-        onChangeOrigin(match);
-        setOriginQuery(match.name);
+  // Truly resolve typed queries and trigger route calculation
+  const handlePlanRoute = async () => {
+    setIsPlanning(true);
+    try {
+      // 1. Resolve Origin if text is given and differs from origin.name
+      const oQ = originQuery.trim();
+      if (oQ && oQ !== origin.name) {
+        if (originSuggestions.length > 0) {
+          onChangeOrigin(originSuggestions[0]);
+          setOriginQuery(originSuggestions[0].name);
+        } else {
+          const local = searchComprehensiveBhubaneswar(oQ);
+          if (local.length > 0) {
+            onChangeOrigin(local[0]);
+            setOriginQuery(local[0].name);
+          } else {
+            const online = await searchLocations(oQ);
+            if (online.length > 0) {
+              onChangeOrigin(online[0]);
+              setOriginQuery(online[0].name);
+            }
+          }
+        }
       }
-    }
 
-    if (destQuery && destQuery !== destination.name) {
-      const match = searchComprehensiveBhubaneswar(destQuery)[0];
-      if (match) {
-        onChangeDestination(match);
-        setDestQuery(match.name);
+      // 2. Resolve Destination if text is given and differs from destination.name
+      const dQ = destQuery.trim();
+      if (dQ && dQ !== destination.name) {
+        if (destSuggestions.length > 0) {
+          onChangeDestination(destSuggestions[0]);
+          setDestQuery(destSuggestions[0].name);
+        } else {
+          const local = searchComprehensiveBhubaneswar(dQ);
+          if (local.length > 0) {
+            onChangeDestination(local[0]);
+            setDestQuery(local[0].name);
+          } else {
+            const online = await searchLocations(dQ);
+            if (online.length > 0) {
+              onChangeDestination(online[0]);
+              setDestQuery(online[0].name);
+            }
+          }
+        }
       }
-    }
 
-    setOriginSuggestions([]);
-    setDestSuggestions([]);
+      setOriginSuggestions([]);
+      setDestSuggestions([]);
+    } catch (err) {
+      console.warn('Error during route endpoint resolution:', err);
+    } finally {
+      setIsPlanning(false);
+    }
   };
 
   // Filter category shortcuts
@@ -249,11 +283,15 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
               setTimeout(() => setOriginSuggestions([]), 250);
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && originSuggestions.length > 0) {
-                const top = originSuggestions[0];
-                onChangeOrigin(top);
-                setOriginQuery(top.name);
-                setOriginSuggestions([]);
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (originSuggestions.length > 0) {
+                  const top = originSuggestions[0];
+                  onChangeOrigin(top);
+                  setOriginQuery(top.name);
+                  setOriginSuggestions([]);
+                }
+                handlePlanRoute();
               }
             }}
             onChange={(e) => handleOriginChange(e.target.value)}
@@ -272,7 +310,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
-            {isSearchingOrigin && (
+            {(isSearchingOrigin || isPlanning) && (
               <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
             )}
           </div>
@@ -284,7 +322,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
             {originSuggestions.map((item, idx) => (
               <div
                 key={`orig-sug-${idx}`}
-                onMouseDown={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
                   onChangeOrigin(item);
                   setOriginQuery(item.name);
@@ -348,14 +386,14 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
+                e.preventDefault();
                 if (destSuggestions.length > 0) {
                   const top = destSuggestions[0];
                   onChangeDestination(top);
                   setDestQuery(top.name);
                   setDestSuggestions([]);
-                } else {
-                  handlePlanRoute();
                 }
+                handlePlanRoute();
               }
             }}
             onChange={(e) => handleDestChange(e.target.value)}
@@ -374,7 +412,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
-            {isSearchingDest && (
+            {(isSearchingDest || isPlanning) && (
               <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin" />
             )}
           </div>
@@ -386,7 +424,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
             {destSuggestions.map((item, idx) => (
               <div
                 key={`dest-sug-${idx}`}
-                onMouseDown={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
                   onChangeDestination(item);
                   setDestQuery(item.name);
@@ -420,10 +458,20 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
       {/* Big Action Button: Plan Routes */}
       <button
         onClick={handlePlanRoute}
-        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 transition-all transform active:scale-[0.99] border border-emerald-400/40"
+        disabled={isPlanning}
+        className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 transition-all transform active:scale-[0.99] border border-emerald-400/40 disabled:opacity-80 cursor-pointer"
       >
-        <Navigation className="w-4 h-4 text-emerald-200 fill-emerald-200" />
-        <span>Plan Routes (Direct &bull; Shaded &bull; Balanced)</span>
+        {isPlanning ? (
+          <>
+            <Loader2 className="w-4 h-4 text-emerald-200 animate-spin" />
+            <span>Calculating Real-Time Road Routes...</span>
+          </>
+        ) : (
+          <>
+            <Navigation className="w-4 h-4 text-emerald-200 fill-emerald-200" />
+            <span>Plan Routes (Direct &bull; Shaded &bull; Balanced)</span>
+          </>
+        )}
       </button>
 
       {/* Category Filter Chips (Google Maps / Uber Explore Style) */}

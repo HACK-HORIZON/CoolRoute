@@ -683,27 +683,244 @@ export const BHUBANESWAR_EXPANDED_DATABASE: EnrichedLocationPoint[] = [
     poiType: 'misting_station',
     poiDescription: 'Lush urban forest with 92% tree canopy density and ambient misting',
     tags: ['forest park', 'biju patnaik park', 'unit 1', 'jogging park']
+  },
+  // 8. POPULAR TRAFFIC SQUARES, COLONIES & TRANSIT JUNCTIONS
+  {
+    name: 'Jaydev Vihar Square (Overbridge Junction)',
+    lat: 20.2974,
+    lng: 85.8234,
+    address: 'Jaydev Vihar Square, Nandankanan Rd & NH-16, Bhubaneswar 751013',
+    category: 'building',
+    poiType: 'cooling_hub',
+    poiDescription: 'Major central hub connecting NH-16, Nayapalli, and Nandankanan Road',
+    tags: ['jaydev vihar', 'jayadev vihar', 'square', 'overbridge', 'nayapalli', 'nh16', 'junction']
+  },
+  {
+    name: 'Patia Square (Big Bazaar & KIIT Rd)',
+    lat: 20.3540,
+    lng: 85.8180,
+    address: 'Patia Square, Nandankanan Road, Patia, Bhubaneswar 751024',
+    category: 'building',
+    poiType: 'water_fountain',
+    poiDescription: 'High-density commercial junction in North Bhubaneswar',
+    tags: ['patia', 'patia square', 'patia chowk', 'nandankanan road', 'kiit road']
+  },
+  {
+    name: 'KIIT Square (Campus 3 / KIMS)',
+    lat: 20.3530,
+    lng: 85.8190,
+    address: 'KIIT Square, Campus 3 Road, Patia, Bhubaneswar 751024',
+    category: 'education',
+    poiType: 'cooling_hub',
+    poiDescription: 'Central KIIT University campus intersection and pedestrian plaza',
+    tags: ['kiit', 'kiit square', 'campus 3', 'patia', 'kims']
+  },
+  {
+    name: 'Acharya Vihar Square (Science Park)',
+    lat: 20.3015,
+    lng: 85.8340,
+    address: 'Acharya Vihar, NH-16, Bhubaneswar 751013',
+    category: 'building',
+    poiType: 'shaded_bench',
+    poiDescription: 'Key transit junction for Utkal University and Regional Science Centre',
+    tags: ['acharya vihar', 'science park', 'nh16', 'square']
+  },
+  {
+    name: 'Vani Vihar Square (Utkal University Gate)',
+    lat: 20.3045,
+    lng: 85.8450,
+    address: 'Vani Vihar Square, NH-16, Saheed Nagar, Bhubaneswar 751007',
+    category: 'education',
+    poiType: 'cooling_hub',
+    poiDescription: 'Major junction near Utkal University and Saheed Nagar',
+    tags: ['vani vihar', 'bani bihar', 'utkal university', 'saheed nagar', 'square']
+  },
+  {
+    name: 'Rasulgarh Square (NH-16 Flyover)',
+    lat: 20.2915,
+    lng: 85.8670,
+    address: 'Rasulgarh Square, Cuttack-Puri NH-16, Bhubaneswar 751010',
+    category: 'building',
+    poiType: 'water_fountain',
+    poiDescription: 'Eastern gateway of Bhubaneswar connecting to Cuttack and Puri',
+    tags: ['rasulgarh', 'rasulgarh square', 'cuttack road', 'flyover', 'nh16']
+  },
+  {
+    name: 'Khandagiri Square (NH-16 Junction)',
+    lat: 20.2580,
+    lng: 85.7865,
+    address: 'Khandagiri Square, NH-16 & Udayagiri Caves Rd, Bhubaneswar 751030',
+    category: 'heritage',
+    poiType: 'cooling_hub',
+    poiDescription: 'Historic western intersection connecting to Caves and Baramunda',
+    tags: ['khandagiri square', 'khandagiri chowk', 'nh16', 'baramunda', 'caves']
+  },
+  {
+    name: 'Fire Station Square (Baramunda)',
+    lat: 20.2730,
+    lng: 85.7990,
+    address: 'Fire Station Square, NH-16, Baramunda, Bhubaneswar 751003',
+    category: 'building',
+    poiType: 'water_fountain',
+    poiDescription: 'Key junction on NH-16 near ISBT Baramunda',
+    tags: ['fire station', 'fire station square', 'baramunda', 'nh16']
+  },
+  {
+    name: 'Delta Square (Unit 8)',
+    lat: 20.2725,
+    lng: 85.8120,
+    address: 'Delta Square, Governor House Rd, Unit 8, Bhubaneswar 751012',
+    category: 'building',
+    poiType: 'shaded_bench',
+    poiDescription: 'Central residential junction near Raj Bhavan',
+    tags: ['delta square', 'delta chowk', 'unit 8', 'raj bhavan']
+  },
+  {
+    name: 'Siripur Square (OUAT Gate)',
+    lat: 20.2640,
+    lng: 85.8180,
+    address: 'Siripur Square, OUAT Campus, Bhubaneswar 751003',
+    category: 'education',
+    poiType: 'cooling_hub',
+    poiDescription: 'Tree-shaded intersection outside Odisha University of Agriculture',
+    tags: ['siripur', 'siripur square', 'ouat', 'surya nagar']
+  },
+  {
+    name: 'AG Square (Odisha Secretariat)',
+    lat: 20.2660,
+    lng: 85.8320,
+    address: 'AG Square, Sachivalaya Marg, Bhubaneswar 751001',
+    category: 'building',
+    poiType: 'cooling_hub',
+    poiDescription: 'Government center near Lok Seva Bhawan and State Museum',
+    tags: ['ag square', 'accountant general', 'secretariat', 'sachivalaya marg']
+  },
+  {
+    name: 'Rajmahal Square (Janpath)',
+    lat: 20.2645,
+    lng: 85.8415,
+    address: 'Rajmahal Square, Janpath Rd & Station Rd, Bhubaneswar 751009',
+    category: 'building',
+    poiType: 'water_fountain',
+    poiDescription: 'High-density commercial crossing near Bapuji Nagar and Station',
+    tags: ['rajmahal', 'rajmahal square', 'janpath', 'bapuji nagar']
+  },
+  {
+    name: 'Kalpana Square (Cuttack-Puri Rd)',
+    lat: 20.2565,
+    lng: 85.8450,
+    address: 'Kalpana Square, Cuttack-Puri Road, Bhubaneswar 751006',
+    category: 'building',
+    poiType: 'shaded_bench',
+    poiDescription: 'Historic junction connecting to State Museum and Old Town',
+    tags: ['kalpana', 'kalpana square', 'state museum', 'puri road']
+  },
+  {
+    name: 'Damana Square (Sailashree Vihar)',
+    lat: 20.3340,
+    lng: 85.8195,
+    address: 'Damana Square, Nandankanan Rd, Chandrasekharpur, Bhubaneswar 751016',
+    category: 'building',
+    poiType: 'water_fountain',
+    poiDescription: 'Bustling intersection between CSPur and Patia',
+    tags: ['damana', 'damana square', 'sailashree vihar', 'chandrasekharpur']
+  },
+  {
+    name: 'Chandrasekharpur Petrol Pump Square',
+    lat: 20.3220,
+    lng: 85.8210,
+    address: 'CSPur Petrol Pump Square, Nandankanan Rd, Bhubaneswar 751023',
+    category: 'building',
+    poiType: 'cooling_hub',
+    poiDescription: 'Key commercial crossing in Chandrasekharpur Housing Board',
+    tags: ['chandrasekharpur', 'cspur', 'petrol pump', 'housing board']
+  },
+  {
+    name: 'Infocity Square (DLF Cybercity)',
+    lat: 20.3585,
+    lng: 85.8080,
+    address: 'Infocity Square, Infocity Rd, Patia, Bhubaneswar 751024',
+    category: 'building',
+    poiType: 'cooling_hub',
+    poiDescription: 'Northern IT corridor hub with TCS, Infosys, and DLF towers',
+    tags: ['infocity', 'infocity square', 'dlf', 'patia', 'it park']
+  },
+  {
+    name: 'Cuttack (Badambadi Bus Terminal)',
+    lat: 20.4625,
+    lng: 85.8830,
+    address: 'Badambadi, Cuttack, Odisha 753012',
+    category: 'building',
+    poiType: 'water_fountain',
+    poiDescription: 'Primary bus transit hub of Millennium City Cuttack',
+    tags: ['cuttack', 'badambadi', 'bus stand']
+  },
+  {
+    name: 'Puri (Jagannath Temple / Grand Road)',
+    lat: 19.8048,
+    lng: 85.8179,
+    address: 'Bada Danda (Grand Road), Puri, Odisha 752001',
+    category: 'heritage',
+    poiType: 'cooling_hub',
+    poiDescription: 'Historic pilgrim avenue leading to Shree Jagannath Temple',
+    tags: ['puri', 'jagannath', 'temple', 'grand road', 'bada danda']
   }
 ];
 
 /**
- * Searches the expanded Bhubaneswar database using multi-field fuzzy matching
+ * High-precision fuzzy search with token relevance scoring
  */
 export function searchComprehensiveBhubaneswar(query: string): EnrichedLocationPoint[] {
   const q = query.toLowerCase().trim();
   if (!q) return BHUBANESWAR_EXPANDED_DATABASE.slice(0, 10);
 
   const tokens = q.split(/\s+/).filter(Boolean);
+  const scored: { item: EnrichedLocationPoint; score: number }[] = [];
 
-  return BHUBANESWAR_EXPANDED_DATABASE.filter((item) => {
-    const haystack = [
-      item.name,
-      item.address || '',
-      item.category,
-      ...(item.tags || [])
-    ].join(' ').toLowerCase();
+  for (const item of BHUBANESWAR_EXPANDED_DATABASE) {
+    const nameLower = item.name.toLowerCase();
+    const addrLower = (item.address || '').toLowerCase();
+    const tagsLower = (item.tags || []).join(' ').toLowerCase();
+    const haystack = `${nameLower} ${addrLower} ${item.category} ${tagsLower}`;
 
-    // Check if every token matches
-    return tokens.every((token) => haystack.includes(token));
-  }).slice(0, 12);
+    let score = 0;
+
+    // Direct matches
+    if (nameLower === q) {
+      score += 120;
+    } else if (nameLower.startsWith(q)) {
+      score += 70;
+    } else if (nameLower.includes(q)) {
+      score += 45;
+    } else if (haystack.includes(q)) {
+      score += 35;
+    }
+
+    // Token-based fuzzy overlap
+    let matchedCount = 0;
+    for (const t of tokens) {
+      if (nameLower.includes(t)) {
+        matchedCount++;
+        score += 20;
+      } else if (tagsLower.includes(t)) {
+        matchedCount++;
+        score += 15;
+      } else if (addrLower.includes(t)) {
+        matchedCount++;
+        score += 8;
+      }
+    }
+
+    // Reward proportion of matched query tokens
+    if (tokens.length > 0 && matchedCount > 0) {
+      score += (matchedCount / tokens.length) * 25;
+    }
+
+    if (score > 0) {
+      scored.push({ item, score });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 12).map((s) => s.item);
 }

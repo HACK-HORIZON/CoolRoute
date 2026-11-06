@@ -32,6 +32,14 @@ def read_root():
         "docs_url": "/docs"
     }
 
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "coolroute-backend",
+        "timestamp": datetime.now().isoformat()
+    }
+
 @app.get("/api/pois")
 def search_pois(q: Optional[str] = Query(None, description="Search term for landmarks, buildings, malls, colonies")):
     """

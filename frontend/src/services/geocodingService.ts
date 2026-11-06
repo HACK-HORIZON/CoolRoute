@@ -18,19 +18,31 @@ export async function searchLocations(query: string): Promise<SearchResultItem[]
     return BHUBANESWAR_EXPANDED_DATABASE.slice(0, 8).map(mapEnrichedToResult);
   }
 
-  // 1. Instant match from comprehensive local database
-  const localMatches = searchComprehensiveBhubaneswar(trimmed).map(mapEnrichedToResult);
-
-  // If we already have strong local matches and query is short, return them immediately
-  if (trimmed.length < 3 && localMatches.length > 0) {
-    return localMatches;
+  // 0. Support direct coordinate input (e.g. "20.2961, 85.8245")
+  const coordMatch = trimmed.match(/^([+-]?\d+(?:\.\d+)?)[,\s]+([+-]?\d+(?:\.\d+)?)$/);
+  if (coordMatch) {
+    const lat = parseFloat(coordMatch[1]);
+    const lng = parseFloat(coordMatch[2]);
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return [{
+        id: `coord_${lat.toFixed(4)}_${lng.toFixed(4)}`,
+        name: `Custom Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+        lat,
+        lng,
+        address: `Custom coordinates: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        categoryIcon: '📍',
+        categoryLabel: 'COORDINATES'
+      }];
+    }
   }
 
+  // 1. Instant match from comprehensive local database
+  const localMatches = searchComprehensiveBhubaneswar(trimmed).map(mapEnrichedToResult);
   const results: SearchResultItem[] = [...localMatches];
 
   // 2. Query Photon Geocoder (Bhubaneswar location bias: 20.2961, 85.8245)
   try {
-    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&lat=20.2961&lon=85.8245&limit=8`;
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&lat=20.2961&lon=85.8245&limit=10`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
 
@@ -48,28 +60,25 @@ export async function searchLocations(query: string): Promise<SearchResultItem[]
             const lng = coords[0];
             const lat = coords[1];
 
-            // Only accept results in Greater Bhubaneswar / Khordha / Cuttack region (lat: 20.10 to 20.45, lng: 85.60 to 86.00)
-            if (lat >= 20.10 && lat <= 20.45 && lng >= 85.60 && lng <= 86.00) {
-              const name = props.name || props.street || props.district || props.city || trimmed;
-              const addressParts = [
-                props.housenumber,
-                props.street,
-                props.district,
-                props.city || 'Bhubaneswar'
-              ].filter(Boolean);
+            const name = props.name || props.street || props.district || props.city || trimmed;
+            const addressParts = [
+              props.housenumber,
+              props.street,
+              props.district,
+              props.city || props.state || 'Odisha'
+            ].filter(Boolean);
 
-              const item: SearchResultItem = {
-                id: `photon_${props.osm_id || Math.random()}`,
-                name,
-                lat,
-                lng,
-                address: addressParts.join(', ') || props.state || 'Bhubaneswar, Odisha',
-                categoryIcon: getIconForOsmType(props.osm_value || props.osm_key),
-                categoryLabel: props.osm_value || 'Location'
-              };
+            const item: SearchResultItem = {
+              id: `photon_${props.osm_id || Math.random()}`,
+              name,
+              lat,
+              lng,
+              address: addressParts.join(', ') || props.state || 'Odisha, India',
+              categoryIcon: getIconForOsmType(props.osm_value || props.osm_key),
+              categoryLabel: props.osm_value || 'Location'
+            };
 
-              addIfNotDuplicate(results, item);
-            }
+            addIfNotDuplicate(results, item);
           }
         }
       }
@@ -78,9 +87,9 @@ export async function searchLocations(query: string): Promise<SearchResultItem[]
     // Photon failed or timed out, proceed to Nominatim
   }
 
-  // 3. Query OpenStreetMap Nominatim with bounding box bias
+  // 3. Query OpenStreetMap Nominatim with India / Odisha bias
   try {
-    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(trimmed)}&viewbox=85.65,20.45,85.95,20.15&bounded=0&limit=6&addressdetails=1`;
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(trimmed)}&viewbox=85.50,20.60,86.20,20.00&bounded=0&limit=8&addressdetails=1`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
 
@@ -93,25 +102,32 @@ export async function searchLocations(query: string): Promise<SearchResultItem[]
         const lat = parseFloat(item.lat);
         const lng = parseFloat(item.lon);
 
-        if (lat >= 20.10 && lat <= 20.45 && lng >= 85.60 && lng <= 86.00) {
-          const parts = item.display_name.split(',');
-          const shortTitle = parts.slice(0, 2).join(',').trim();
+        const parts = item.display_name.split(',');
+        const shortTitle = parts.slice(0, 2).join(',').trim();
 
-          addIfNotDuplicate(results, {
-            id: `nom_${item.place_id}`,
-            name: shortTitle || item.name,
-            lat,
-            lng,
-            address: item.display_name,
-            categoryIcon: '📍',
-            categoryLabel: item.type || 'Street'
-          });
-        }
+        addIfNotDuplicate(results, {
+          id: `nom_${item.place_id}`,
+          name: shortTitle || item.name,
+          lat,
+          lng,
+          address: item.display_name,
+          categoryIcon: '📍',
+          categoryLabel: item.type || 'Street'
+        });
       }
     }
   } catch {
     // Ignore online errors
   }
+
+  // Prioritize locations in Greater Bhubaneswar region
+  results.sort((a, b) => {
+    const aInBbsr = a.lat >= 20.15 && a.lat <= 20.45 && a.lng >= 85.65 && a.lng <= 85.95;
+    const bInBbsr = b.lat >= 20.15 && b.lat <= 20.45 && b.lng >= 85.65 && b.lng <= 85.95;
+    if (aInBbsr && !bInBbsr) return -1;
+    if (!aInBbsr && bInBbsr) return 1;
+    return 0;
+  });
 
   return results.slice(0, 12);
 }
